@@ -1,56 +1,134 @@
+
+import requests
+import pandas as pd
 import matplotlib.pyplot as plt
+import streamlit as st
 
-x = [1, 2, 3, 4, 5]
-y = [2, 4, 6, 8, 10]
-fig, ax = plt.subplots()
-ax.plot(x, y, color='green', marker='o')
-ax.set_title("Grafik Linear (OO Style)")
+# Judul aplikasi
+st.title("Visualisasi Data Pokémon")
 
-ax.set_xlabel("Sumbu X")
-ax.set_ylabel("Sumbu Y")
-plt.show()
+# Input jumlah Pokémon
+limit = st.slider(
+    "Pilih jumlah Pokémon yang ingin ditampilkan:",
+    5, 30, 10
+)
 
-bulan = ["Jan", "Feb", "Mar", "Apr", "Mei"]
-penjualan = [100, 120, 90, 140, 160]
-plt.plot(bulan, penjualan, marker='o', color='b')
-plt.title("Tren Penjualan Bulanan")
-plt.xlabel("Bulan")
-plt.ylabel("Penjualan")
-plt.grid(True)
-plt.show()
+# Mengambil data dari PokeAPI
+url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}"
+response = requests.get(url)
 
-jurusan = ["Informatika", "Sistem Informasi", "Desain", "Manajemen"]
-jumlah = [120, 90, 60, 110]
-plt.bar(jurusan, jumlah, color='orange')
-plt.title("Jumlah Mahasiswa per Jurusan")
-plt.xlabel("Jurusan")
-plt.ylabel("Jumlah Mahasiswa")
-plt.show()
+pokemon_list = []
 
-jam_belajar = [1, 2, 3, 4, 5, 6]
-nilai = [60, 65, 70, 75, 80, 90]
-plt.scatter(jam_belajar, nilai, color='green')
-plt.title("Hubungan Jam Belajar dan Nilai Ujian")
-plt.xlabel("Jam Belajar")
-plt.ylabel("Nilai")
-plt.show()
+if response.status_code == 200:
 
-kategori = ["Makanan", "Transportasi", "Hiburan", "Lainnya"]
-persentase = [40, 25, 20, 15]
-plt.pie(persentase, labels=kategori, autopct="%1.1f%%", startangle=90)
-plt.title("Komposisi Pengeluaran Bulanan")
-plt.show()
+    data = response.json()
 
-nilai = [65, 70, 75, 80, 85, 90, 90, 95, 100, 70, 85, 80, 75, 60]
-plt.hist(nilai, bins=5, color='purple', edgecolor='black')
-plt.title("Distribusi Nilai Ujian")
-plt.xlabel("Rentang Nilai")
-plt.ylabel("Frekuensi")
-plt.show()
+    # Mengambil detail setiap Pokémon
+    for item in data['results']:
+        detail = requests.get(item['url']).json()
 
-kelas_a = [70, 75, 80, 85, 90, 95]
-kelas_b = [65, 70, 75, 85, 90, 92]
-plt.boxplot([kelas_a, kelas_b], labels=["Kelas A", "Kelas B"])
-plt.title("Perbandingan Nilai Antar Kelas")
-plt.ylabel("Nilai")
-plt.show()
+        pokemon_list.append({
+            'name': detail['name'].capitalize(),
+            'height': detail['height'],
+            'weight': detail['weight'],
+            'abilities': len(detail['abilities'])
+        })
+
+    # Membuat DataFrame
+    df = pd.DataFrame(pokemon_list)
+
+    # Menampilkan tabel Pokémon
+    st.subheader("Data Pokémon")
+    st.dataframe(df)
+
+    # Menampilkan statistik
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Rata-rata Tinggi",
+            f"{df['height'].mean():.2f}"
+        )
+
+    with col2:
+        st.metric(
+            "Rata-rata Berat",
+            f"{df['weight'].mean():.2f}"
+        )
+
+    with col3:
+        st.metric(
+            "Rata-rata Ability",
+            f"{df['abilities'].mean():.2f}"
+        )
+
+    # Grafik 1 dan 2
+    colA, colB = st.columns(2)
+
+    with colA:
+        st.write("### Grafik Tinggi Pokémon")
+
+        fig1, ax1 = plt.subplots()
+        ax1.bar(
+            df['name'],
+            df['height'],
+            color='skyblue'
+        )
+
+        ax1.set_xlabel("Nama Pokémon")
+        ax1.set_ylabel("Tinggi")
+        ax1.tick_params(axis='x', rotation=45)
+
+        st.pyplot(fig1)
+
+    with colB:
+        st.write("### Grafik Berat Pokémon")
+
+        fig2, ax2 = plt.subplots()
+        ax2.barh(
+            df['name'],
+            df['weight'],
+            color='orange'
+        )
+
+        ax2.set_xlabel("Berat")
+        ax2.set_ylabel("Nama Pokémon")
+
+        st.pyplot(fig2)
+
+    # Grafik 3 dan 4
+    colC, colD = st.columns(2)
+
+    with colC:
+        st.write("### Scatter Plot Tinggi vs Berat")
+
+        fig3, ax3 = plt.subplots()
+        ax3.scatter(
+            df['height'],
+            df['weight'],
+            color='green'
+        )
+
+        ax3.set_xlabel("Tinggi")
+        ax3.set_ylabel("Berat")
+
+        st.pyplot(fig3)
+
+    with colD:
+        st.write("### Histogram Jumlah Ability")
+
+        fig4, ax4 = plt.subplots()
+        ax4.hist(
+            df['abilities'],
+            bins=range(1, 6),
+            color='purple',
+            rwidth=0.8
+        )
+
+        ax4.set_xlabel("Jumlah Ability")
+        ax4.set_ylabel("Frekuensi")
+
+        st.pyplot(fig4)
+
+else:
+    st.error("Gagal mengambil data dari PokeAPI.")
